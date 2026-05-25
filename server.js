@@ -31,7 +31,7 @@ const writeDB = (data) => {
 };
 
 app.post('/api/verify-purchase', (req, res) => {
-  const { domain, url, purchase_code, product_code } = req.body;
+  const { domain, url, purchase_code, product_code, date_time, user_agent, language } = req.body;
   const db = readDB();
 
   if (!domain) {
@@ -84,6 +84,9 @@ app.post('/api/verify-purchase', (req, res) => {
     url,
     purchase_code,
     product_code,
+    client_date_time: date_time,
+    user_agent,
+    language,
     activated_at: new Date().toISOString()
   });
   
