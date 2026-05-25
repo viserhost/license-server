@@ -31,16 +31,20 @@ const writeDB = (data) => {
 };
 
 app.post('/api/verify-purchase', (req, res) => {
-  const { domain, url, purchase_code } = req.body;
+  const { domain, url, purchase_code, product_code } = req.body;
   const db = readDB();
 
   if (!domain) {
     return res.status(400).json({ success: false, message: "Domain is required" });
   }
 
+  if (!product_code) {
+    return res.status(400).json({ success: false, message: "Product code is required" });
+  }
+
   // Case 1: Checking if domain is already activated (when app reloads without a purchase code)
   if (!purchase_code) {
-    const isActivated = db.activations.find(a => a.domain === domain);
+    const isActivated = db.activations.find(a => a.domain === domain && a.product_code === product_code);
     if (isActivated) {
       return res.json({ success: true, message: "Domain is verified" });
     } else {
@@ -49,9 +53,16 @@ app.post('/api/verify-purchase', (req, res) => {
   }
 
   // Case 2: Activating with a purchase code (when user submits the modal)
-  // Check if code is valid
-  if (!db.valid_codes.includes(purchase_code)) {
-    return res.json({ success: false, message: "Invalid purchase code" });
+  // Check if code is valid for this product
+  const validCodeObj = db.valid_codes.find(c => c.code === purchase_code && c.product_code === product_code);
+  
+  if (!validCodeObj) {
+    return res.json({ success: false, message: "Invalid purchase code for this product" });
+  }
+
+  // Check if the purchase code is active
+  if (validCodeObj.is_active === false) {
+    return res.json({ success: false, message: "This purchase code has been disabled" });
   }
 
   // Check if code is already used
@@ -67,11 +78,12 @@ app.post('/api/verify-purchase', (req, res) => {
     }
   }
 
-  // Valid code, not used -> Activate it!
+  // Valid code, active, and not used -> Activate it!
   db.activations.push({
     domain,
     url,
     purchase_code,
+    product_code,
     activated_at: new Date().toISOString()
   });
   
